@@ -1,31 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "table.h"
 
-typedef int TKey;
-typedef int TValue;
-
-typedef struct Node {
-    bool empty;
-    TKey key;
-    TValue value;
-    struct Node *next;
-} Node;
-
-typedef struct {
-    size_t size;
-    size_t capacity;
-    Node *node;
-    Node *lastfree;
-} Table;
+Table *Table_resize(Table *this);
 
 uint32_t Table_hash(TKey val) {
     return val;
 }
-
-Table *Table_resize(Table *this);
-void Table_debugprint(Table *this);
 
 Table *Table_new() {
     Table *this = malloc(sizeof(Table));
@@ -204,7 +183,7 @@ void Table_debugprint(Table *this) {
     }
 }
 
-int main() {
+int test() {
     Table *table = Table_new();
     Table_set(table, 3, 114);
     Table_set(table, 11, 514);
