@@ -41,6 +41,15 @@ Table *Table_new() {
     return this;
 }
 
+void Table_update_lastfree(Table *this) {
+    while (!this->lastfree->empty) {
+        this->lastfree--;
+        if (this->lastfree < this->node) {
+            this->lastfree = this->node + this->capacity + 1;
+        }
+    }
+}
+
 Table *Table_add(Table *this, TKey key, TValue value) {
     size_t pos = Table_hash(key) % this->capacity;
     Node *node = this->node + pos;
@@ -51,10 +60,7 @@ Table *Table_add(Table *this, TKey key, TValue value) {
         node->empty = false;
         node->next = NULL;
         this->size++;
-        // update lastfree pointer
-        while (!this->lastfree->empty) {
-            this->lastfree--;
-        }
+        Table_update_lastfree(this);
         return this;
     }
     // 被别人占了
@@ -74,10 +80,7 @@ Table *Table_add(Table *this, TKey key, TValue value) {
         node->empty = false;
         node->next = NULL;
         this->size++;
-        // update lastfree pointer
-        while (!this->lastfree->empty) {
-            this->lastfree--;
-        }
+        Table_update_lastfree(this);
         return this;
     }
     // 解决冲突
@@ -91,10 +94,7 @@ Table *Table_add(Table *this, TKey key, TValue value) {
     Node *head = this->node + pos;
     node->next = head->next;
     head->next = node;
-    // update lastfree pointer
-    while (!this->lastfree->empty) {
-        this->lastfree--;
-    }
+    Table_update_lastfree(this);
     return this;
 }
 
@@ -106,13 +106,51 @@ Node *Table_find(Table *this, TKey key) {
         return NULL;
     }
     // find node
-    while (node) {
+    while (node && !node->empty) {
         if (node->key == key) {
             return node;
         }
         node = node->next;
     }
     return NULL;
+}
+
+Table *Table_resize(Table *this) {
+    return this;
+}
+
+Table *Table_del(Table *this, TKey key) {
+    size_t pos = Table_hash(key) % this->capacity;
+    Node *node = this->node + pos;
+    // occupied by other key
+    if (Table_hash(node->key) % this->capacity != pos) {
+        return this;
+    }
+    // if head is what we want
+    if (node->key == key) {
+        if (node->next) {
+            node->next->empty = true;
+            node->key = node->next->key;
+            node->value = node->next->value;
+            node->next = node->next->next;
+        } else {
+            node->empty = true;
+        }
+        this->size--;
+        return this;
+    }
+    // else find prev node and del next node
+    Node *prev = NULL;
+    while (prev->next) {
+        if (prev->next->key == key) {
+            break;
+        }
+        prev = prev->next;
+    }
+    prev->next->empty = true;
+    prev->next = prev->next->next;
+    this->size--;
+    return this;
 }
 
 Table *Table_set(Table *this, TKey key, TValue value) {
@@ -132,7 +170,7 @@ void Table_free(Table *this) {
 void Table_debugprint(Table *this) {
     for (size_t i = 0; i < this->capacity; i++) {
         Node *node = this->node + i;
-        printf("Node[%d](empty=%d, key=%d, value=%d, next=0x%p)\n", i, node->empty, node->key, node->value, node->next);
+        printf("Node[%zd](empty=%d, key=%d, value=%d, next=0x%p)\n", i, node->empty, node->key, node->value, node->next);
     }
 }
 
@@ -145,8 +183,16 @@ int main() {
     Table_set(table, 6, 514);
     Table_set(table, 5, 514);
     Table_set(table, 4, 514);
+    Table_del(table, 6);
+    Table_del(table, 5);
+    Table_del(table, 4);
+    Table_set(table, 5, 114);
+    Table_set(table, 6, 114);
+    Table_set(table, 7, 114);
     Table_debugprint(table);
     printf("%p\n", Table_find(table, 2));
     printf("%p\n", Table_find(table, 3));
+    printf("%p\n", Table_find(table, 11));
+    printf("%zd", table->size);
     Table_free(table);
 }
