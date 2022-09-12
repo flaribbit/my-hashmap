@@ -41,7 +41,7 @@ Table *Table_new() {
     return this;
 }
 
-void Table_update_lastfree(Table *this) {
+void Table_find_free(Table *this) {
     while (!this->lastfree->empty) {
         this->lastfree--;
         if (this->lastfree < this->node) {
@@ -60,7 +60,6 @@ Table *Table_add(Table *this, TKey key, TValue value) {
         node->empty = false;
         node->next = NULL;
         this->size++;
-        Table_update_lastfree(this);
         return this;
     }
     // 被别人占了
@@ -74,16 +73,17 @@ Table *Table_add(Table *this, TKey key, TValue value) {
         }  // 理论上p不是空指针
         p->next = this->lastfree;
         // 搬走
+        Table_find_free(this);
         *this->lastfree = *node;
         node->key = key;
         node->value = value;
         node->empty = false;
         node->next = NULL;
         this->size++;
-        Table_update_lastfree(this);
         return this;
     }
     // 解决冲突
+    Table_find_free(this);
     node = this->lastfree;
     node->key = key;
     node->value = value;
@@ -94,7 +94,6 @@ Table *Table_add(Table *this, TKey key, TValue value) {
     Node *head = this->node + pos;
     node->next = head->next;
     head->next = node;
-    Table_update_lastfree(this);
     return this;
 }
 
@@ -143,13 +142,14 @@ Table *Table_del(Table *this, TKey key) {
     Node *prev = NULL;
     while (prev->next) {
         if (prev->next->key == key) {
-            break;
+            prev->next->empty = true;
+            prev->next = prev->next->next;
+            this->size--;
+            return this;
         }
         prev = prev->next;
     }
-    prev->next->empty = true;
-    prev->next = prev->next->next;
-    this->size--;
+    // not found
     return this;
 }
 
