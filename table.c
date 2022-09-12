@@ -51,6 +51,33 @@ Table *Table_add(Table *this, TKey key, TValue value) {
         node->empty = false;
         node->next = NULL;
         this->size++;
+        // update lastfree pointer
+        while (!this->lastfree->empty) {
+            this->lastfree--;
+        }
+        return this;
+    }
+    // 被别人占了
+    size_t node_pos = Table_hash(node->key) % this->capacity;
+    if (node_pos != pos) {
+        // 找前一个节点
+        Node *p = this->node + node_pos;
+        while (p) {
+            if (p->next == node) break;
+            p = p->next;
+        }  // 理论上p不是空指针
+        p->next = this->lastfree;
+        // 搬走
+        *this->lastfree = *node;
+        node->key = key;
+        node->value = value;
+        node->empty = false;
+        node->next = NULL;
+        this->size++;
+        // update lastfree pointer
+        while (!this->lastfree->empty) {
+            this->lastfree--;
+        }
         return this;
     }
     // 解决冲突
@@ -60,11 +87,11 @@ Table *Table_add(Table *this, TKey key, TValue value) {
     node->empty = false;
     node->next = NULL;
     this->size++;
-    // 头插
+    // insert to head
     Node *head = this->node + pos;
     node->next = head->next;
     head->next = node;
-    // 寻找空闲节点
+    // update lastfree pointer
     while (!this->lastfree->empty) {
         this->lastfree--;
     }
@@ -74,6 +101,11 @@ Table *Table_add(Table *this, TKey key, TValue value) {
 Node *Table_find(Table *this, TKey key) {
     size_t pos = Table_hash(key) % this->capacity;
     Node *node = this->node + pos;
+    // occupied by other key
+    if (Table_hash(node->key) % this->capacity != pos) {
+        return NULL;
+    }
+    // find node
     while (node) {
         if (node->key == key) {
             return node;
@@ -109,6 +141,12 @@ int main() {
     Table_set(table, 3, 114);
     Table_set(table, 11, 514);
     Table_set(table, 19, 514);
+    Table_set(table, 7, 514);
+    Table_set(table, 6, 514);
+    Table_set(table, 5, 514);
+    Table_set(table, 4, 514);
     Table_debugprint(table);
+    printf("%p\n", Table_find(table, 2));
+    printf("%p\n", Table_find(table, 3));
     Table_free(table);
 }
