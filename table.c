@@ -38,7 +38,7 @@ Table *Table_add(Table *this, TKey key, TValue value) {
     }
     size_t pos = Table_hash(key) % this->capacity;
     Node *node = this->node + pos;
-    // 没有冲突 直接存储
+    // case 1: target node is empty
     if (node->empty) {
         node->key = key;
         node->value = value;
@@ -47,16 +47,16 @@ Table *Table_add(Table *this, TKey key, TValue value) {
         this->size++;
         return this;
     }
-    // 被别人占了
+    // case 2: target node is occupied by other hash
     size_t node_pos = Table_hash(node->key) % this->capacity;
     if (node_pos != pos) {
-        // 找前一个节点
+        // find its prev node
         Node *p = this->node + node_pos;
         while (p) {
             if (p->next == node) break;
             p = p->next;
-        }  // 理论上p不是空指针
-        // 搬走
+        }
+        // ... then move to free node
         Table_find_free(this);
         p->next = this->lastfree;
         *this->lastfree = *node;
@@ -67,7 +67,7 @@ Table *Table_add(Table *this, TKey key, TValue value) {
         this->size++;
         return this;
     }
-    // 解决冲突
+    // case 3: collision resolution
     Table_find_free(this);
     node = this->lastfree;
     node->key = key;
