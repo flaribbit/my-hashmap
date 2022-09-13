@@ -4,6 +4,32 @@ extern "C" {
 #include <unordered_map>
 #include <chrono>
 
+void test() {
+    Table *table = Table_new();
+    Table_set(table, 3, 114);
+    Table_set(table, 11, 514);
+    Table_set(table, 19, 514);
+    Table_set(table, 7, 514);
+    Table_set(table, 6, 514);
+    Table_set(table, 5, 514);
+    Table_set(table, 4, 514);
+    Table_del(table, 6);
+    Table_del(table, 5);
+    Table_del(table, 4);
+    Table_set(table, 5, 114);
+    Table_set(table, 6, 114);
+    Table_set(table, 7, 114);
+    Table_set(table, 8, 114);
+    Table_set(table, 9, 114);
+    Table_set(table, 10, 114);
+    Table_debugprint(table);
+    printf("%p\n", Table_find(table, 2));
+    printf("%p\n", Table_find(table, 3));
+    printf("%p\n", Table_find(table, 11));
+    printf("%zd", table->size);
+    Table_free(table);
+}
+
 int test0() {
     srand(114514);
     for (int i = 0; i < 20000; i++) {
