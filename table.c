@@ -105,7 +105,7 @@ Table *Table_resize(Table *this) {
     table.capacity = this->capacity * 2;
     table.node = malloc(sizeof(Node) * table.capacity);
     table.lastfree = table.node + table.capacity - 1;
-    for (size_t i = 0; i < this->capacity; i++) {
+    for (size_t i = 0; i < table.capacity; i++) {
         table.node[i].empty = true;
     }
     for (size_t i = 0; i < this->size; i++) {
@@ -183,7 +183,7 @@ void Table_debugprint(Table *this) {
     }
 }
 
-int test() {
+void test() {
     Table *table = Table_new();
     Table_set(table, 3, 114);
     Table_set(table, 11, 514);
