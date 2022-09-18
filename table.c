@@ -6,7 +6,7 @@ uint32_t Table_hash(TKey val) {
     return val;
 }
 
-Table *Table_new() {
+Table *Table_new(THashFunc hashFunc, TCmpFunc cmpFunc, TToStrFunc toStrFunc) {
     Table *this = malloc(sizeof(Table));
     if (!this) return NULL;
     this->size = 0;
@@ -20,6 +20,9 @@ Table *Table_new() {
     for (size_t i = 0; i < this->capacity; i++) {
         this->node[i].empty = true;
     }
+    this->hashFunc = hashFunc;
+    this->cmpFunc = cmpFunc;
+    this->toStrFunc = toStrFunc;
     return this;
 }
 
@@ -32,7 +35,7 @@ void Table_find_free(Table *this) {
     }
 }
 
-Table *Table_add(Table *this, TKey key, TValue value) {
+Table *Table_add_with_key(Table *this, TKey key, TValue value) {
     if (this->size == this->capacity) {
         Table_resize(this);
     }
@@ -82,7 +85,12 @@ Table *Table_add(Table *this, TKey key, TValue value) {
     return this;
 }
 
-Node *Table_find(Table *this, TKey key) {
+Table *Table_add(Table *this, TValue value) {
+  return Table_add_with_key(this, this->hashFunc(value), value);
+}
+
+TValue Table_find(Table *this, TValue vKey) {
+    TKey key = this->hashFunc(vKey);
     size_t pos = Table_hash(key) % this->capacity;
     Node *node = this->node + pos;
     // occupied by other key
@@ -91,8 +99,8 @@ Node *Table_find(Table *this, TKey key) {
     }
     // find node
     while (node && !node->empty) {
-        if (node->key == key) {
-            return node;
+        if (node->key == key && this->cmpFunc(vKey, node->value) == 0) {
+            return node->value;
         }
         node = node->next;
     }
@@ -109,7 +117,7 @@ Table *Table_resize(Table *this) {
         table.node[i].empty = true;
     }
     for (size_t i = 0; i < this->size; i++) {
-        Table_add(&table, this->node[i].key, this->node[i].value);
+        Table_add_with_key(&table, this->node[i].key, this->node[i].value);
     }
     // Table_debugprint(&table);
     free(this->node);
@@ -120,7 +128,8 @@ Table *Table_resize(Table *this) {
     return this;
 }
 
-Table *Table_del(Table *this, TKey key) {
+Table *Table_del(Table *this, TValue vKey) {
+    TKey key = this->hashFunc(vKey);
     size_t pos = Table_hash(key) % this->capacity;
     Node *node = this->node + pos;
     // occupied by other key
@@ -128,7 +137,7 @@ Table *Table_del(Table *this, TKey key) {
         return this;
     }
     // if head is what we want
-    if (node->key == key) {
+    if (node->key == key && this->cmpFunc(vKey, node->value) == 0) {
         if (node->next) {
             node->next->empty = true;
             node->key = node->next->key;
@@ -141,9 +150,9 @@ Table *Table_del(Table *this, TKey key) {
         return this;
     }
     // else find prev node and del next node
-    Node *prev = NULL;
+    Node *prev = node;
     while (prev->next) {
-        if (prev->next->key == key) {
+        if (prev->next->key == key && this->cmpFunc(vKey, prev->next->value) == 0) {
             prev->next->empty = true;
             prev->next = prev->next->next;
             this->size--;
@@ -155,13 +164,13 @@ Table *Table_del(Table *this, TKey key) {
     return this;
 }
 
-Table *Table_set(Table *this, TKey key, TValue value) {
-    Node *node = Table_find(this, key);
+Table *Table_set(Table *this, TValue value) {
+    TValue node = Table_find(this, value);
+    // todo: need to consider collision here, currently just delete first
     if (node) {
-        node->value = value;
-    } else {
-        Table_add(this, key, value);
+        Table_del(this, node);
     }
+    Table_add(this, value);
     return this;
 }
 
@@ -173,10 +182,16 @@ void Table_free(Table *this) {
 void Table_debugprint(Table *this) {
     for (size_t i = 0; i < this->capacity; i++) {
         Node *node = this->node + i;
-        int pos = node->next - this->node;
+        long pos = node->next - this->node;
         if (pos < 0 || pos >= this->capacity) pos = -1;
         if (!node->empty) {
-            printf("Node[%zd](key=%d, value=%d, next=%d)\n", i, node->key, node->value, pos);
+            if (!this->toStrFunc)
+                printf("Node[%zd](key=%d, value=addr(%p), next=%ld)\n", i, node->key, node->value, pos);
+            else {
+                char* s = this->toStrFunc(node->value);
+                printf("Node[%zd](key=%d, value=%s, next=%ld)\n", i, node->key, s, pos);
+                free(s);
+            }
         } else {
             printf("Node[%zd]()\n", i);
         }
